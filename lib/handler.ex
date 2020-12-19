@@ -26,24 +26,38 @@ defmodule SAXMap.Handler do
   end
 
 
-  def handle_event(:characters, "\n" <> _, state) do
-    {:ok, state}
-  end
+  def handle_event(:characters, chars, {stack, %{ignore_attribute: true} = options} = state) do
+    case String.trim(chars) do
+      "" ->
+        {:ok, state}
 
-  def handle_event(:characters, chars, {stack, %{ignore_attribute: true} = options}) do
-    [{tag_name, _content} | stack] = stack
-    current = {tag_name, chars}
-    {:ok, {[current | stack], options}}
+      chars ->
+        [{tag_name, _content} | stack] = stack
+        current = {tag_name, chars}
+        {:ok, {[current | stack], options}}
+    end
   end
-  def handle_event(:characters, chars, {stack, %{ignore_attribute: false} = options}) do
-    [{tag_name, attributes, _content} | stack] = stack
-    current = {tag_name, attributes, chars}
-    {:ok, {[current | stack], options}}
+  def handle_event(:characters, chars, {stack, %{ignore_attribute: false} = options} = state) do
+    case String.trim(chars) do
+      "" ->
+        {:ok, state}
+
+      chars ->
+        [{tag_name, attributes, _content} | stack] = stack
+        current = {tag_name, attributes, chars}
+        {:ok, {[current | stack], options}}
+    end
   end
-  def handle_event(:characters, chars, {stack, %{ignore_attribute: {false, _attribute_prefix}} = options}) do
-    [{tag_name, attributes, _content} | stack] = stack
-    current = {tag_name, attributes, chars}
-    {:ok, {[current | stack], options}}
+  def handle_event(:characters, chars, {stack, %{ignore_attribute: {false, _attribute_prefix}} = options} = state) do
+    case String.trim(chars) do
+      "" ->
+        {:ok, state}
+
+      chars ->
+        [{tag_name, attributes, _content} | stack] = stack
+        current = {tag_name, attributes, chars}
+        {:ok, {[current | stack], options}}
+    end
   end
 
   def handle_event(:end_element, tag_name, {[{tag_name, content} | []], %{ignore_attribute: true} = options}) do
@@ -128,6 +142,9 @@ defmodule SAXMap.Handler do
 
   defp list_to_map([], prepared) do
     prepared
+  end
+  defp list_to_map(item, prepared) when is_binary(item) do
+    list_to_map([{"__text", item}], prepared)
   end
   defp list_to_map([item | rest], prepared) when is_map(item) do
     [{key, value}] = Map.to_list(item)
